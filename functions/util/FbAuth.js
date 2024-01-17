@@ -23,6 +23,7 @@ module.exports  = (req,res,next)=>{
     .then(
         data=>{
             req.user.email = data.docs[0].data().email
+            req.user.blitzId = data.docs[0].data().blitzId
             return next()
         }
     ).catch(

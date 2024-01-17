@@ -7,6 +7,18 @@ const {initializeApp} = require("firebase/app")
 const {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,sendPasswordResetEmail,sendEmailVerification} = require("firebase/auth")
 const firebaseApp=initializeApp(config)
 const auth = getAuth(firebaseApp)
+function generateUniqueUserId(name) {
+  // Ensure the name is at least 5 characters long
+  const truncatedName = name.slice(0, 5);
+
+  // Generate a random 5-character string
+  const randomString = Math.random().toString(36).substring(2, 7);
+
+  // Combine the "BLITZ" prefix, truncated name, and random string
+  const userId = `BLITZ-${truncatedName.toUpperCase()}-${randomString.toUpperCase()}`;
+
+  return userId;
+}
 
 const {
     validateSignupData,
@@ -26,7 +38,7 @@ exports.signup = (req, res) => {
       college:req.body.college,
       referalid:req.body.referalid,
     };
-  
+  const blitzId = generateUniqueUserId(req.body.name)
     const { valid, errors } = validateSignupData(newUser);
   
     if (!valid) return res.status(400).json(errors);
@@ -55,8 +67,9 @@ exports.signup = (req, res) => {
           //TODO Append token to imageUrl. Work around just add token from image in storage.
         //   imageUrl: `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
           userId,
+          blitzId
         };
-        return db.doc(`/users/${userId}`).set(userCredentials);
+        return db.doc(`/users/${blitzId}`).set(userCredentials);
       })
       .then(() => {
         return res.status(201).json({ token });
@@ -100,6 +113,7 @@ exports.signup = (req, res) => {
           .json({ general: "Wrong credentials, please try again" });
       });
   };
+
 
   exports.ca = (req, res) => {
     const user = {
@@ -145,7 +159,49 @@ exports.signup = (req, res) => {
   };
 
 
+exports.getAllCa = (request,response)=>{
+  console.log("api called")
+  db.collection("ca").get().then(
+      data=>{
+          let cas = []
+          data.forEach(doc=>{
+              cas.push({
+                  id:doc.id,
 
+                  ...doc.data()})
+          })
+
+          return response.json(cas)
+      }
+  )
+  .catch(err=>{
+      console.error(err);
+      response.status(500).json({ error: err.code });
+  })
+
+}
+
+exports.getAllUsers = (request,response)=>{
+  console.log("api called")
+  db.collection("users").get().then(
+      data=>{
+          let cas = []
+          data.forEach(doc=>{
+              cas.push({
+                  id:doc.id,
+
+                  ...doc.data()})
+          })
+
+          return response.json(cas)
+      }
+  )
+  .catch(err=>{
+      console.error(err);
+      response.status(500).json({ error: err.code });
+  })
+
+}
   exports.forgotPassword= (req,res) =>{
     const email = req.body.email
     const { valid, errors } = validateEmail({email});
@@ -183,95 +239,78 @@ exports.signup = (req, res) => {
     });
   }
 
-//   // Add user details
-//   exports.addUserDetails = (req, res) => {
-//     let userDetails = reduceUserDetails(req.body);
-  
-//     db.doc(`/users/${req.user.handle}`)
-//       .update(userDetails)
-//       .then(() => {
-//         return res.json({ message: "Details added successfully" });
-//       })
-//       .catch((err) => {
-//         console.error(err);
-//         return res.status(500).json({ error: err.code });
-//       });
-//   };
-//   // Get any user's details
-//   exports.getUserDetails = (req, res) => {
-//     let userData = {};
-//     db.doc(`/users/${req.params.handle}`)
-//       .get()
-//       .then((doc) => {
-//         if (doc.exists) {
-//           userData.user = doc.data();
-//           return db
-//             .collection("screams")
-//             .where("userHandle", "==", req.params.handle)
-//             .orderBy("createdAt", "desc")
-//             .get();
-//         } else {
-//           return res.status(404).json({ errror: "User not found" });
-//         }
-//       })
-//       .then((data) => {
-//         userData.screams = [];
-//         data.forEach((doc) => {
-//           userData.screams.push({
-//             body: doc.data().body,
-//             createdAt: doc.data().createdAt,
-//             userHandle: doc.data().userHandle,
-//             userImage: doc.data().userImage,
-//             likeCount: doc.data().likeCount,
-//             commentCount: doc.data().commentCount,
-//             screamId: doc.id,
-//           });
-//         });
-//         return res.json(userData);
-//       })
-//       .catch((err) => {
-//         console.error(err);
-//         return res.status(500).json({ error: err.code });
-//       });
-//   };
 
 
 
 
-  // Get own user details
   exports.getAuthenticatedUser = (req, res) => {
-
     let userData = {};
-    // console.log("user",req.user)
-    db.doc(`/users/${req.user.uid}`)
+  
+    db.doc(`/users/${req.user.blitzId}`)
       .get()
       .then((doc) => {
         if (doc.exists) {
           userData.credentials = doc.data();
-          console.log(doc.data())
-          userEvents = doc.data().registeredEvents
-          return userEvents
+          const userEvents = doc.data().registeredEvents;
+  
+          // Check if user has registered events
+          if (!userEvents || userEvents.length === 0) {
+            // If not, send response with an empty array for registeredEventsData and registeredTeamsData
+            userData.registeredEventsData = [];
+            userData.registeredTeamsData = [];
+            return res.json(userData);
+          }
+  
+          // Create an array of promises to fetch event details and team details for each registered event
+          const eventPromises = userEvents.map((event) => {
+            const eventId = event.eventId;
+            const teamId = event.teamId; // Assuming teamId is part of the registeredEvents data structure
+  
+            // Fetch event details
+            const eventPromise = db.collection("events").doc(eventId).get();
+  
+            // Fetch team details
+            const teamPromise = db.collection("teams").doc(teamId).get();
+  
+            // Return an object with both promises
+            return { eventPromise, teamPromise };
+          });
+  
+          // Resolve all promises
+          return Promise.all(eventPromises.map(({ eventPromise, teamPromise }) => {
+            // Resolve both promises and return an object with event and team data
+            return Promise.all([eventPromise, teamPromise]);
+          }));
+        } else {
+          // User not found
+          res.status(403).json({ error: "Not Authorized" });
         }
       })
-      .then((data) => {
-        console.log(data)
-        userData.registeredEvents = [];
-        data.forEach((doc) => {
-        db.collection("events").doc(doc).get().then(
-            d=>{
-                userData.registeredEvents.push(d.data())
-            }
-        );
-
-        });
-
+      .then((results) => {
+        // Process event details and team details
+        userData.registeredEventsData = results.map(([eventSnapshot, teamSnapshot]) => eventSnapshot.data());
+        userData.registeredTeamsData = results.map(([eventSnapshot, teamSnapshot]) => teamSnapshot.data());
+  
         return res.json(userData);
       })
-      
-
-
       .catch((err) => {
-        // console.error(err);
+        console.error(err);
         return res.status(500).json({ error: err.code });
       });
   };
+  
+
+
+
+  exports.updateUser = (request,response)=>{
+    const userId = request.params.userId
+    // console.log(request.body)
+    
+    db.collection("users").doc(userId).update(request.body).then(doc =>
+        response.json({messgae:`document with updated successfully`})
+    )
+    .catch(err=>{response.status(500).json({error:"something went wrong"})
+console.log(err)
+})
+
+}

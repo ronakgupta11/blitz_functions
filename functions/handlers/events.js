@@ -45,11 +45,21 @@ exports.postEvent = (request,response)=>{
     
     const newEvent = {
         date:request.body.date,
-        cat:request.body.cat,
-        name:request.body.name
+        category:request.body.category,
+        name:request.body.name,
+        time:request.body.time,
+        venue:request.body.venue,
+        image:request.body.image,
+        rulebook:request.body.rulebook,
+        banner:request.body.banner,
+        desc:request.body.desc,
+        oneliner:request.body.oneliner,
+        prize:request.body.prize,
+        maxParticipants:request.body.maxParticipants,
+        clubName:request.body.clubName
     }
     db.collection("events").add(newEvent).then(doc =>
-        response.json({messgae:`document wit ${doc.id} created successfully`})
+        response.json({messgae:`document with ${doc.id} created successfully`})
     )
     .catch(err=>{response.status(500).json({error:"something went wrong"})
 console.log(err)
@@ -57,10 +67,25 @@ console.log(err)
 
 }
 
-exports.registerEvent = (req,res)=>{
+exports.updateEvent = (request,response)=>{
+    const eventId = request.params.eventId
+    console.log(request.body)
+    
+    db.collection("events").doc(eventId).update(request.body).then(doc =>
+        response.json({messgae:`document with updated successfully`})
+    )
+    .catch(err=>{response.status(500).json({error:"something went wrong"})
+console.log(err)
+})
 
 }
-
-exports.getRegisteredTeams = (req,res)=>{
-
-}
+exports.deleteEvent = (request,response)=>{
+    const eventId = request.params.eventId
+    console.log(request.body)
+    
+    db.collection("events").doc(eventId).delete().then(doc =>
+        response.json({messgae:`document  deleted successfully`})
+    )
+    .catch(err=>{response.status(500).json({error:"something went wrong"})
+console.log(err)
+})}
