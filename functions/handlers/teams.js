@@ -203,46 +203,69 @@ db.doc(`/teams/${request.params.teamId}`).get().then(
 
 exports.getRegisteredTeams = (req, res) => {
   const event = req.params.name;
+  const teamAndUserData = [];
 
   // Assuming db is your Firestore instance
-  db.collection("events").where("name", "==", event).get().then(
-    eventDoc => {
-      const data = eventDoc.docs[0].data()
-      const teams = data.registeredTeams || [];
+  db.collection("events")
+    .where("name", "==", event)
+    .get()
+    .then(eventDocs => {
+      if (eventDocs.empty) {
+        console.error("Event document not found");
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const eventData = eventDocs.docs[0].data();
+      const teams = eventData.registeredTeams || [];
 
       const teamPromises = teams.map(team => {
-        console.log(team);
+        console.log("Fetching team:", team);
         // Fetch team details from "teams" collection
-        const teamPromise = db.collection("teams").doc(team).get().then(
-          (teamDoc) => {
-          
-            const teamData = teamDoc.data();
-            // Fetch team leader details from "users" collection
-            return db.collection("users").doc(teamData.teamLeaderId).get().then(
-              userDoc => {
-                const userData = userDoc.data();
-                // Combine team and team leader details
-                return { team: teamData, teamLeader: userData };
-              }
-            );
-          }
-        );
-        return teamPromise;
+        return db.collection("teams").doc(team).get();
       });
 
-      return Promise.all(teamPromises);
-    }
-  ).then(
-    teamsData => {
-      return res.json(teamsData);
-    }
-  ).catch(
-    error => {
+      return Promise.all(teamPromises)
+        .then(teamsData => {
+          const userPromises = teamsData.map(teamDoc => {
+            if (teamDoc.exists && teamDoc.data().teamLeaderId) {
+              const teamData = teamDoc.data();
+              console.log("Fetched team data:", teamData);
+              return db.collection("users").doc(teamData.teamLeaderId).get();
+            } else {
+              return Promise.resolve(null); // Resolve with null for teams without valid data
+            }
+          });
+
+          return Promise.all(userPromises).then(userData => {
+            return { teamsData, userData };
+          });
+        });
+    })
+    .then(({ teamsData, userData }) => {
+      const teamsAndUsersData = teamsData.map((teamDoc, index) => {
+        const teamData = teamDoc.data(); // Access team data at the corresponding index
+        const userDoc = userData[index];
+        
+        if (userDoc && userDoc.exists) {
+          const userData = userDoc.data();
+          console.log("Fetched user data:", userData);
+
+          // Combine team and team leader details
+          return { team: teamData, teamLeader: userData };
+        }
+        return null; // Skip teams without valid user data
+      }).filter(item => item !== null); // Remove null entries
+
+      console.log("All teams and user details fetched successfully");
+      return res.json(teamsAndUsersData);
+    })
+    .catch(error => {
       console.error("Error:", error);
       return res.status(500).json({ error: "Internal Server Error" });
-    }
-  );
+    });
 };
+
+
 
 // Upload a profile image for user
 exports.uploadImage = (req, res) => {
