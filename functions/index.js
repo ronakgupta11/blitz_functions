@@ -22,7 +22,7 @@ const {getAllEvents,
 
 } = require("./handlers/events")
 
-const {getRegisteredTeams, deleteTeam} = require("./handlers/teams")
+const {getRegisteredTeams, deleteTeam, verifyTeam} = require("./handlers/teams")
 
 const { signup, login,forgotPassword, getAuthenticatedUser, ca ,sendVerification, updateUser, getAllCa, getAllUsers} = require("./handlers/users");
 const {registerTeam, joinTeam, uploadImage} = require("./handlers/teams")
@@ -377,6 +377,7 @@ app.post("/events/join/:eventId/:teamId",FbAuth,joinTeam)
 app.post("/events/proof/:teamId",FbAuth,uploadImage)
 app.get("/teams/:name",getRegisteredTeams)
 app.get("/deleteTeam/:teamId",onlyAdmin,deleteTeam)
+app.get("/verifyTeam/:teamId",onlyAdmin,verifyTeam)
 
 //pass
 app.get("/passes",getAllPasses)
