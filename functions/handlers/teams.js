@@ -361,3 +361,14 @@ exports.deleteTeam = (request,response)=>{
     .catch(err=>{response.status(500).json({error:"something went wrong"})
 console.log(err)
 })}
+
+
+exports.verifyTeam = (request,response)=>{
+  const teamId = request.params.teamId
+  
+  db.collection("teams").doc(teamId).update({status:"verified"}).then(doc =>
+      response.json({messgae:`document  Verified successfully`})
+  )
+  .catch(err=>{response.status(500).json({error:"something went wrong"})
+console.log(err)
+})}
