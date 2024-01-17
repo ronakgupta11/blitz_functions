@@ -376,8 +376,8 @@ app.post("/events/register/:eventId/:teamId",FbAuth,registerTeam)
 app.post("/events/join/:eventId/:teamId",FbAuth,joinTeam)
 app.post("/events/proof/:teamId",FbAuth,uploadImage)
 app.get("/teams/:name",getRegisteredTeams)
-app.get("/deleteTeam/:teamId",onlyAdmin,deleteTeam)
-app.get("/verifyTeam/:teamId",onlyAdmin,verifyTeam)
+app.post("/deleteTeam/:teamId",onlyAdmin,deleteTeam)
+app.post("/verifyTeam/:teamId",onlyAdmin,verifyTeam)
 
 //pass
 app.get("/passes",getAllPasses)

@@ -366,7 +366,7 @@ console.log(err)
 exports.verifyTeam = (request,response)=>{
   const teamId = request.params.teamId
   
-  db.collection("teams").doc(teamId).update({status:"verified"}).then(doc =>
+  db.collection("teams").doc(teamId).update({teamStatus:"verified"}).then(doc =>
       response.json({messgae:`document  Verified successfully`})
   )
   .catch(err=>{response.status(500).json({error:"something went wrong"})
